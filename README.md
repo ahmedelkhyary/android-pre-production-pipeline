@@ -11,3 +11,8 @@ An Android pipeline for the CI process is a set of automated steps configured to
 
 3 - Firebase Credentials – Necessary for uploading the build to Firebase App Distribution.
 
+<a href="https://www.linkedin.com/feed/update/urn:li:activity:7328780907442581504/" target="_blank" rel="noopener noreferrer">Mobile DevOps Presentation</a>
+
+
+
+
