@@ -3,11 +3,11 @@ An Android pipeline for the CI process is a set of automated steps configured to
 
 # Build and Deployment Requirements
 
-1 - To successfully build and upload the app, the following items are required:
+#### To successfully build and upload the app, the following items are required:
 
-2 - Keystore File – Required for signing the Android application.
+1 - Keystore File – Required for signing the Android application.
 
-3 - GitHub Token – Needed if the source code is hosted in a private GitHub repository.
+2 - GitHub Token – Needed if the source code is hosted in a private GitHub repository.
 
-4 - Firebase Credentials – Necessary for uploading the build to Firebase App Distribution.
+3 - Firebase Credentials – Necessary for uploading the build to Firebase App Distribution.
 
