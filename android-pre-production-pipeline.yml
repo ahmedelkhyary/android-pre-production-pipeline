@@ -1,0 +1,97 @@
+# azure-pipeline.yml
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - feature/*
+      - hotfix/*
+  tags:
+    include:
+      - v*
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  flutterVersion: "3.27.3" # Specify the exact Flutter version
+  javaVersion: "17"
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildAndroid
+        steps:
+          - task: JavaToolInstaller@0
+            displayName: "Install Java"
+            inputs:
+              versionSpec: $(javaVersion)
+              jdkArchitectureOption: "x64"
+              jdkSourceOption: "PreInstalled"
+
+          - task: FlutterInstall@0
+            displayName: "Install Flutter"
+            inputs:
+              mode: "version" # Use version mode for specific version
+              version: $(flutterVersion)
+              architecture: "x64"
+              customUrl: "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$(flutterVersion)-stable.tar.xz"
+
+          - script: flutter --version
+            displayName: "Verify Flutter Version"
+
+          - script: flutter clean
+            displayName: "Flutter clean"
+
+          # if you are using private github repo else you can ignore this script
+          - script: |
+              git config --global url."https://$(GITHUB_TOKEN)@github.com/".insteadOf "https://github.com/"
+            displayName: "Configure Git to Use GitHub Token for Cloning"
+          # uplaod keystore on azure library
+          - task: DownloadSecureFile@1
+            name: keystoreFile
+            displayName: "Download Keystore"
+            inputs:
+              secureFile: "TPH.jks"
+
+          - script: |
+              mkdir -p android/app/keystore
+              cp $(keystoreFile.secureFilePath) android/app/keystore/
+              echo "storeFile=keystore/TPH.jks" >> android/key.properties
+              echo "storePassword=$(TPHPass)" >> android/key.properties
+              echo "keyAlias=$(keyAlias)" >> android/key.properties
+              echo "keyPassword=$(TPHPass)" >> android/key.properties
+            displayName: "Setup Keystore and Properties"
+
+          - script: flutter pub get
+            displayName: "Flutter pub get"
+
+          - script: flutter build apk --release --no-shrink
+            displayName: "Flutter build APK release"
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Release New Version"
+            inputs:
+              pathtoPublish: "$(System.DefaultWorkingDirectory)/build/app/outputs/flutter-apk/app-release.apk"
+              ArtifactName: "Release Android APK"
+
+          - task: DownloadSecureFile@1
+            name: firebaseCredentials
+            displayName: "Download Firebase Credentials"
+            inputs:
+              secureFile: "service-account.json"
+
+          - script: |
+              npm install -g firebase-tools
+              firebase --version
+            displayName: "Install Firebase CLI"
+
+          # Upload APK to Firebase
+          - script: |
+              export GOOGLE_APPLICATION_CREDENTIALS=$(firebaseCredentials.secureFilePath)  # Set Firebase credentials
+              export FIREBASE_CLI_PREVIEWS=none  # Prevents Firebase preview feature prompts
+              firebase appdistribution:distribute "$(System.DefaultWorkingDirectory)/build/app/outputs/flutter-apk/app-release.apk" \
+              --app "$(FIREBASE_APP_ID)" \
+              --testers "$(FIREBASE_TESTERS)"
+            displayName: "Distribute to Firebase App Distribution"
